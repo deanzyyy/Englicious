@@ -7,5 +7,13 @@ Route::get('/', function () {
 });
 
 Route::get('/home', function () {
-    return view('home');
+    return view('home', ['title' => 'Home']);
+});
+
+Route::get('/exercise', function(){
+    return view('exercise');
+});
+
+Route::get('/presence', function(){
+    return view('presence');
 });
