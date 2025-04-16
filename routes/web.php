@@ -17,3 +17,7 @@ Route::get('/exercise', function(){
 Route::get('/presence', function(){
     return view('presence');
 });
+
+Route::get('/login', function(){
+    return view('Login');
+});
