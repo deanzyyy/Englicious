@@ -21,3 +21,11 @@ Route::get('/presence', function(){
 Route::get('/login', function(){
     return view('Login');
 });
+
+Route::get('/registrasi', function(){
+    return view('registrasi');
+});
+
+Route::get('/register', function () {
+    return view('registrasi');
+})->name('register');

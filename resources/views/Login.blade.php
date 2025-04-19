@@ -13,10 +13,9 @@
     <div class="hero bg-base-200 min-h-screen">
         <div class="hero-content flex-col">
           <div class="text-center lg:text-left p-5">
-            <h1 class="text-5xl font-bold text-center">Login now!</h1>
-            <p class="py-6 text-center max-w-[500px]">
-              Provident cupiditate voluptatem et in. Quaerat fugiat ut assumenda excepturi exercitationem
-              quasi. In deleniti eaque aut repudiandae et a id nisi.
+            <h1 class="text-5xl font-bold text-center">Login</h1>
+            <p class="py-6 text-center max-w-[300px]">
+              "Live as if you were to die tomorrow. Learn as if you were to live forever."
             </p>
           </div>
           <div class="card bg-base-100 w-full max-w-sm shrink-0 shadow-2xl">
@@ -26,8 +25,11 @@
                 <input type="email" class="input" placeholder="Email" />
                 <label class="fieldset-label">Password</label>
                 <input type="password" class="input" placeholder="Password" />
-                <div><a class="link link-hover">Forgot password?</a></div>
-                <button class="btn btn-neutral mt-4">Login</button>
+                <div class="flex justify-between text-sm mt-2">
+                  <a class="link link-hover">Forgot password?</a>
+                  <a href="{{ route('register') }}" class="link link-hover">Registrasi</a>
+                </div>                
+                <button class="btn btn-primary w-full mt-2">Login</button>
               </fieldset>
             </div>
           </div>
