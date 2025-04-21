@@ -17,7 +17,7 @@
 
     {{-- Classroom list --}}
     <div class="container-Room p-5">
-        <h1 class="text-gray-400 text-xl">Your Classroom</h1>
+        <h1 class="text-gray-400 text-xl ">Your Classroom</h1>
         <div class="cardlist p-5 space-y-6">
 
             {{-- CARD --}}
@@ -74,10 +74,8 @@
                     <div>
                         <button class="btn bg-blue-600 text-white p-2 w-40  h-15 rounded-lg hover:bg-blue-500">Open Class</button>
                     </div>
-                </div>
+                </div>    
               </div>
-
-
         </div>
     </div>
 </div>

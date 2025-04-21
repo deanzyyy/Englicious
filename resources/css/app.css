@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 @source "../views";
+/* @import "flowbite/src/themes/default"; */
+/* @plugin "flowbite/plugin"; */
+@plugin "daisyui";
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
