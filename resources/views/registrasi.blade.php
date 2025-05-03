@@ -1,3 +1,4 @@
+<!-- resources/views/auth/registrasi.blade.php -->
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -19,6 +20,17 @@
               Silakan isi formulir berikut untuk registrasi aplikasi
             </p>
 
+            <!-- Tampilkan Error -->
+            @if ($errors->any())
+              <div class="mb-4 text-red-500 text-sm">
+                <ul class="list-disc pl-5">
+                  @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                  @endforeach
+                </ul>
+              </div>
+            @endif
+
             <form action="{{ route('registrasi.submit') }}" method="POST" class="space-y-4 text-sm">
               @csrf
               
@@ -26,28 +38,28 @@
                 <label class="label">
                   <span class="label-text">Nama Lengkap</span>
                 </label>
-                <input type="text" name="name" placeholder="Nama lengkap" class="input input-bordered h-10" required />
+                <input type="text" name="name" value="{{ old('name') }}" placeholder="Nama lengkap" class="input input-bordered h-10 @error('name') input-error @enderror" required />
               </div>
 
               <div class="form-control">
                 <label class="label">
                   <span class="label-text">Email Address</span>
                 </label>
-                <input type="email" name="email" placeholder="Alamat email" class="input input-bordered h-10" required />
+                <input type="email" name="email" value="{{ old('email') }}" placeholder="Alamat email" class="input input-bordered h-10 @error('email') input-error @enderror" required />
               </div>
 
               <div class="form-control">
                 <label class="label">
                   <span class="label-text">Password</span>
                 </label>
-                <input type="password" name="password" placeholder="Kata sandi" class="input input-bordered h-10" required />
+                <input type="password" name="password" placeholder="Kata sandi" class="input input-bordered h-10 @error('password') input-error @enderror" required />
               </div>
 
               <div class="form-control">
                 <label class="label">
                   <span class="label-text">Konfirmasi Password</span>
                 </label>
-                <input type="password" name="konfirmasi_password" placeholder="Ulangi kata sandi" class="input input-bordered h-10" required />
+                <input type="password" name="password_confirmation" placeholder="Ulangi kata sandi" class="input input-bordered h-10" required />
               </div>
 
               <button type="submit" class="btn btn-primary w-full h-10 text-sm mt-2">Submit Registrasi</button>
@@ -62,5 +74,17 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.querySelector("form").addEventListener("submit", function (e) {
+      const password = document.querySelector('input[name="password"]').value;
+      const confirm = document.querySelector('input[name="password_confirmation"]').value;
+
+      if (password !== confirm) {
+        e.preventDefault();
+        alert("Kata sandi tidak valid. Harap pastikan kedua kata sandi cocok.");
+      }
+    });
+  </script>  
 </body>
 </html>
