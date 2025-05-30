@@ -57,7 +57,7 @@
             <a href="/presence" class="block px-4 py-2 rounded hover:bg-gray-700">Presence</a>
         </li>
         <li>
-            <a href="#" class="block px-4 py-2 rounded hover:bg-gray-700">Gemini AI</a>
+            <a href="{{ route('gemini') }}" class="block px-4 py-2 rounded hover:bg-gray-700">Gemini AI</a>
         </li>
         <li>
             <a href="{{ route('logout') }}">Logout</a>  
