@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RegisterController;
+
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -10,6 +12,14 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('home');
 });
+
+
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get('/register-user', [RegisterController::class, 'show'])->name('register.user');
+    Route::post('/register-user', [RegisterController::class, 'register'])->name('register.user.submit');
+});
+
+
 
 Route::get('/registrasi', [AuthController::class, 'tampilRegistrasi'])->name('registrasi.tampil');
 Route::post('/registrasi/submit', [AuthController::class, 'submitRegistrasi'])->name('registrasi.submit');
@@ -43,3 +53,11 @@ Route::get('/registrasi', function(){
 Route::get('/register', function () {
     return view('registrasi');
 })->name('register');
+
+
+// route::get('/gemini', function(){
+//     return view('gemini');
+// })->name('gemini');
+
+
+Route::view('/gemini', 'gemini')->name('gemini');
