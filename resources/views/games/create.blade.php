@@ -1,0 +1,264 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="ml-64 p-10">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Create New Game</h1>
+        <p class="text-gray-400">Setup a new educational game for your classroom</p>
+    </div>
+
+    <div class="bg-[#211F27] rounded-lg shadow-lg border border-pink-500/20">
+        <div class="p-6">
+            <form method="POST" action="{{ route('games.store') }}" id="gameForm">
+                @csrf
+                
+                <!-- Basic Game Info -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-pink-500 text-sm font-medium mb-2">Game Name</label>
+                        <input type="text" name="name" value="{{ old('name') }}" required
+                               class="w-full bg-[#2A2A32] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                               placeholder="Enter game name...">
+                        @error('name')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    
+                    <div>
+                        <label class="block text-pink-500 text-sm font-medium mb-2">Classroom</label>
+                        <select name="classroom_id" required
+                                class="w-full bg-[#2A2A32] border border-pink-500/20 rounded-lg px-4 py-2 text-white focus:border-pink-500 focus:outline-none">
+                            <option value="">Select Classroom</option>
+                            @foreach($classrooms as $classroom)
+                                <option value="{{ $classroom->id }}" {{ old('classroom_id') == $classroom->id ? 'selected' : '' }}>
+                                    {{ $classroom->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('classroom_id')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <!-- Game Mode and Type -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-pink-500 text-sm font-medium mb-2">Game Mode</label>
+                        <div class="flex space-x-4">
+                            <label class="flex items-center space-x-2 cursor-pointer group">
+                                <input type="radio" name="mode" value="individual" required 
+                                       class="text-pink-500 focus:ring-pink-500 border-2 border-pink-500/20"
+                                       {{ old('mode') === 'individual' ? 'checked' : '' }}>
+                                <span class="text-white group-hover:text-pink-500 transition-colors">Individual</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer group">
+                                <input type="radio" name="mode" value="group" required 
+                                       class="text-pink-500 focus:ring-pink-500 border-2 border-pink-500/20"
+                                       {{ old('mode') === 'group' ? 'checked' : '' }}>
+                                <span class="text-white group-hover:text-pink-500 transition-colors">Group</span>
+                            </label>
+                        </div>
+                        @error('mode')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-pink-500 text-sm font-medium mb-2">Game Type</label>
+                        <div class="flex space-x-4">
+                            <label class="flex items-center space-x-2 cursor-pointer group">
+                                <input type="radio" name="type" value="offline" required 
+                                       class="text-pink-500 focus:ring-pink-500 border-2 border-pink-500/20"
+                                       {{ old('type', 'offline') === 'offline' ? 'checked' : '' }}>
+                                <span class="text-white group-hover:text-pink-500 transition-colors">Offline</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer group">
+                                <input type="radio" name="type" value="online" required 
+                                       class="text-pink-500 focus:ring-pink-500 border-2 border-pink-500/20"
+                                       {{ old('type') === 'online' ? 'checked' : '' }}>
+                                <span class="text-white group-hover:text-pink-500 transition-colors">Online</span>
+                            </label>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-400">
+                            <div id="offlineInfo" style="display: none;">
+                                <strong>Offline Mode:</strong> Students can only view the game. Teachers control scoring.
+                            </div>
+                            <div id="onlineInfo" style="display: none;">
+                                <strong>Online Mode:</strong> Students can participate and answer questions directly.
+                            </div>
+                        </div>
+                        @error('type')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <!-- Exercise Selection -->
+                <div class="mb-6">
+                    <label class="block text-pink-500 text-sm font-medium mb-2">Select Exercise</label>
+                    <select name="exercise_id" required
+                            class="w-full bg-[#2A2A32] border border-pink-500/20 rounded-lg px-4 py-2 text-white focus:border-pink-500 focus:outline-none">
+                        <option value="">Select Exercise</option>
+                        @foreach($exercises as $exercise)
+                            <option value="{{ $exercise->id }}" {{ old('exercise_id') == $exercise->id ? 'selected' : '' }}>
+                                {{ $exercise->title }} ({{ $exercise->questions_count }} questions)
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('exercise_id')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Players/Teams Setup -->
+                <div class="mb-6">
+                    <label class="block text-pink-500 text-sm font-medium mb-2">
+                        <span id="setupLabel">Players/Teams</span> Setup
+                    </label>
+                    <div id="playersContainer">
+                        <div class="player-item bg-[#2A2A32] rounded-lg p-4 mb-4 border border-pink-500/20">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-white text-sm font-medium mb-2">
+                                        <span id="playerLabel">Player</span> Name
+                                    </label>
+                                    <input type="text" name="players[0][name]" required
+                                           class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                                           placeholder="Enter name...">
+                                </div>
+                                <div id="membersContainer" style="display: none;">
+                                    <label class="block text-white text-sm font-medium mb-2">Team Members</label>
+                                    <div class="space-y-2">
+                                        <input type="text" name="players[0][members][]"
+                                               class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                                               placeholder="Member 1">
+                                        <input type="text" name="players[0][members][]"
+                                               class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                                               placeholder="Member 2">
+                                        <input type="text" name="players[0][members][]"
+                                               class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                                               placeholder="Member 3">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addPlayer()" 
+                            class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity">
+                        Add <span id="addButtonText">Player</span>
+                    </button>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="flex gap-4">
+                    <button type="submit" 
+                            class="px-6 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity">
+                        Create Game
+                    </button>
+                    <a href="{{ route('games.index') }}" 
+                       class="px-6 py-2 border-2 border-pink-500 text-white rounded-lg hover:bg-gradient-to-r from-pink-500 to-orange-500 hover:border-transparent transition-all">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let playerCount = 1;
+
+function updateLabels() {
+    const mode = document.querySelector('input[name="mode"]:checked')?.value;
+    const type = document.querySelector('input[name="type"]:checked')?.value;
+    const labels = document.querySelectorAll('#playerLabel');
+    const addButtonText = document.getElementById('addButtonText');
+    const membersContainers = document.querySelectorAll('#membersContainer');
+    const setupLabel = document.getElementById('setupLabel');
+    
+    if (mode === 'group') {
+        labels.forEach(label => label.textContent = 'Team');
+        addButtonText.textContent = 'Team';
+        membersContainers.forEach(container => container.style.display = 'block');
+        setupLabel.textContent = 'Teams';
+    } else {
+        labels.forEach(label => label.textContent = 'Player');
+        addButtonText.textContent = 'Player';
+        membersContainers.forEach(container => container.style.display = 'none');
+        setupLabel.textContent = 'Players';
+    }
+    
+    // Update type info
+    const offlineInfo = document.getElementById('offlineInfo');
+    const onlineInfo = document.getElementById('onlineInfo');
+    
+    if (type === 'offline') {
+        offlineInfo.style.display = 'block';
+        onlineInfo.style.display = 'none';
+    } else if (type === 'online') {
+        offlineInfo.style.display = 'none';
+        onlineInfo.style.display = 'block';
+    }
+}
+
+function addPlayer() {
+    playerCount++;
+    const container = document.getElementById('playersContainer');
+    const mode = document.querySelector('input[name="mode"]:checked')?.value;
+    
+    const playerDiv = document.createElement('div');
+    playerDiv.className = 'player-item bg-[#2A2A32] rounded-lg p-4 mb-4 border border-pink-500/20';
+    playerDiv.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-white text-sm font-medium mb-2">
+                    <span class="player-label">${mode === 'group' ? 'Team' : 'Player'}</span> Name
+                </label>
+                <input type="text" name="players[${playerCount}][name]" required
+                       class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                       placeholder="Enter name...">
+            </div>
+            <div class="members-container" style="display: ${mode === 'group' ? 'block' : 'none'};">
+                <label class="block text-white text-sm font-medium mb-2">Team Members</label>
+                <div class="space-y-2">
+                    <input type="text" name="players[${playerCount}][members][]"
+                           class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                           placeholder="Member 1">
+                    <input type="text" name="players[${playerCount}][members][]"
+                           class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                           placeholder="Member 2">
+                    <input type="text" name="players[${playerCount}][members][]"
+                           class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
+                           placeholder="Member 3">
+                </div>
+            </div>
+        </div>
+        <button type="button" onclick="removePlayer(this)" 
+                class="mt-2 px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors">
+            Remove
+        </button>
+    `;
+    
+    container.appendChild(playerDiv);
+}
+
+function removePlayer(button) {
+    button.parentElement.remove();
+}
+
+// Update labels when mode changes
+document.querySelectorAll('input[name="mode"]').forEach(radio => {
+    radio.addEventListener('change', updateLabels);
+});
+
+document.querySelectorAll('input[name="type"]').forEach(radio => {
+    radio.addEventListener('change', updateLabels);
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateLabels();
+});
+</script>
+@endsection 
