@@ -46,7 +46,13 @@ class GameController extends Controller
         }
 
         $games = $query->orderBy('created_at', 'desc')->paginate(10);
-        $classrooms = Classroom::orderBy('name')->get();
+        
+        // Filter classrooms by teacher for teacher role
+        if (auth()->user()->role === 'teacher') {
+            $classrooms = Classroom::where('teacher_id', auth()->id())->orderBy('name')->get();
+        } else {
+            $classrooms = Classroom::orderBy('name')->get();
+        }
 
         return view('games.index', compact('games', 'classrooms'));
     }
@@ -77,8 +83,22 @@ class GameController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $classrooms = Classroom::orderBy('name')->get();
-        $exercises = Exercise::whereNull('file_path')->with('questions')->get();
+        // Filter classrooms by teacher for teacher role
+        if (auth()->user()->role === 'teacher') {
+            $classrooms = Classroom::where('teacher_id', auth()->id())->orderBy('name')->get();
+        } else {
+            $classrooms = Classroom::orderBy('name')->get();
+        }
+
+        // Filter exercises by teacher for teacher role
+        if (auth()->user()->role === 'teacher') {
+            $exercises = Exercise::where('created_by', auth()->id())
+                ->whereNull('file_path')
+                ->with('questions')
+                ->get();
+        } else {
+            $exercises = Exercise::whereNull('file_path')->with('questions')->get();
+        }
 
         return view('games.create', compact('classrooms', 'exercises'));
     }
@@ -97,8 +117,8 @@ class GameController extends Controller
             'name' => 'required|string|max:255',
             'mode' => 'required|in:individual,group',
             'type' => 'required|in:online,offline',
-            'players' => 'required|array|min:1',
-            'players.*.name' => 'required|string|max:255',
+            'players' => 'required_if:type,offline|array|min:1',
+            'players.*.name' => 'required_if:type,offline|string|max:255',
             'players.*.members' => 'nullable|array',
             'players.*.members.*' => 'nullable|string|max:255'
         ]);
@@ -115,32 +135,34 @@ class GameController extends Controller
                 'created_by' => Auth::id()
             ]);
 
-            // Create teams and players
-            foreach ($validated['players'] as $playerData) {
-                if ($validated['mode'] === 'group') {
-                    $team = GameTeam::create([
-                        'game_id' => $game->id,
-                        'name' => $playerData['name']
-                    ]);
+            // Only create teams and players for offline mode
+            if ($validated['type'] === 'offline' && isset($validated['players'])) {
+                foreach ($validated['players'] as $playerData) {
+                    if ($validated['mode'] === 'group') {
+                        $team = GameTeam::create([
+                            'game_id' => $game->id,
+                            'name' => $playerData['name']
+                        ]);
 
-                    // Add team members
-                    if (isset($playerData['members'])) {
-                        foreach ($playerData['members'] as $memberName) {
-                            if (!empty($memberName)) {
-                                GamePlayer::create([
-                                    'game_id' => $game->id,
-                                    'team_id' => $team->id,
-                                    'student_name' => $memberName
-                                ]);
+                        // Add team members
+                        if (isset($playerData['members'])) {
+                            foreach ($playerData['members'] as $memberName) {
+                                if (!empty($memberName)) {
+                                    GamePlayer::create([
+                                        'game_id' => $game->id,
+                                        'team_id' => $team->id,
+                                        'student_name' => $memberName
+                                    ]);
+                                }
                             }
                         }
+                    } else {
+                        // Individual mode
+                        GamePlayer::create([
+                            'game_id' => $game->id,
+                            'student_name' => $playerData['name']
+                        ]);
                     }
-                } else {
-                    // Individual mode
-                    GamePlayer::create([
-                        'game_id' => $game->id,
-                        'student_name' => $playerData['name']
-                    ]);
                 }
             }
 
@@ -163,8 +185,22 @@ class GameController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $classrooms = Classroom::orderBy('name')->get();
-        $exercises = Exercise::whereNull('file_path')->with('questions')->get();
+        // Filter classrooms by teacher for teacher role
+        if (auth()->user()->role === 'teacher') {
+            $classrooms = Classroom::where('teacher_id', auth()->id())->orderBy('name')->get();
+        } else {
+            $classrooms = Classroom::orderBy('name')->get();
+        }
+
+        // Filter exercises by teacher for teacher role
+        if (auth()->user()->role === 'teacher') {
+            $exercises = Exercise::where('created_by', auth()->id())
+                ->whereNull('file_path')
+                ->with('questions')
+                ->get();
+        } else {
+            $exercises = Exercise::whereNull('file_path')->with('questions')->get();
+        }
 
         return view('games.edit', compact('game', 'classrooms', 'exercises'));
     }
@@ -239,10 +275,7 @@ class GameController extends Controller
             abort(404);
         }
 
-        // Load game data
-        $game->load(['exercise.questions', 'players.team', 'players.user', 'scores']);
-        
-        // For online mode, ensure current student is a player
+        // For online mode, ensure current student is a player (participant), baik di waiting room maupun gameplay
         if ($game->type === 'online' && auth()->user()->role === 'student') {
             $player = GamePlayer::firstOrCreate([
                 'game_id' => $game->id,
@@ -250,6 +283,16 @@ class GameController extends Controller
             ], [
                 'student_name' => auth()->user()->name
             ]);
+        }
+
+        // Load game data
+        $game->load(['exercise.questions' => function($q) {
+            $q->where('type', 'optional')->orWhere('type', 'multiple_choice');
+        }, 'players.team', 'players.user', 'scores']);
+
+        // Jika game online dan status draft, arahkan ke waiting room (pragame)
+        if ($game->type === 'online' && $game->status === 'draft') {
+            return view('classroom.games.pragame', compact('classroom', 'game'));
         }
 
         return view('classroom.games.play', compact('classroom', 'game'));
@@ -315,12 +358,19 @@ class GameController extends Controller
     {
         // Check if user has admin or teacher role
         if (!auth()->check() || !in_array(auth()->user()->role, ['admin', 'teacher'])) {
-            abort(403, 'Unauthorized action.');
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        // Only allow if status is draft and at least 1 participant
+        if ($game->status !== 'draft') {
+            return response()->json(['success' => false, 'message' => 'Game is already started or finished.']);
+        }
+        if ($game->players()->count() < 1) {
+            return response()->json(['success' => false, 'message' => 'No participants have joined yet.']);
         }
 
         try {
             $game->update(['status' => 'ongoing']);
-            
             return response()->json([
                 'success' => true,
                 'message' => 'Game started successfully!'
@@ -331,5 +381,13 @@ class GameController extends Controller
                 'message' => 'Failed to start game: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    // API: Get game status (for waiting room polling)
+    public function status(Game $game)
+    {
+        return response()->json([
+            'status' => $game->status
+        ]);
     }
 } 

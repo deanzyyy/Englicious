@@ -39,131 +39,147 @@
     <div class="flex-1 py-4 px-3 overflow-y-auto no-scrollbar">
         <p class="text-xs font-medium text-gray-400 mb-2 px-2" x-show="isOpen">Menu</p>
         <ul class="space-y-1">
-            <li class="relative">
-                <a href="{{ route('home') }}" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('/') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <i class="fi fi-rs-home text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Home</span>
-                </a>
-            </li>
             @if (Auth::check() && Auth::user()->role === 'student')
-            <li class="relative">
-                <div x-data="{ open: {{ request()->is('classroom/*') ? 'true' : 'false' }} }" class="relative">
-                    <button @click="open = !open"
-                            class="flex items-center w-full px-2 py-2 text-sm font-medium text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->is('classroom*') ? 'bg-pink-500/10 text-pink-500' : '' }} relative group">
+                @php
+                    $student = Auth::user();
+                    $classrooms = $student->classrooms()->orderBy('name')->get();
+                    $inClassroom = request()->is('classroom/*');
+                @endphp
+                <li class="relative">
+                    <a href="{{ route('home') }}" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('/') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rs-home text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Home</span>
+                    </a>
+                </li>
+                <li class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" class="flex items-center w-full px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 group">
                         <i class="fi fi-rs-chalkboard text-lg"></i>
-                        <span class="flex-1 ml-3 text-left transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Classroom</span>
+                        <span class="ml-3 text-sm flex-1 text-left transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Classroom</span>
                         <i class="fi fi-rr-angle-small-down text-lg transition-transform" :class="{ 'rotate-180': open }"></i>
                     </button>
-                    
-                    <div x-show="open" 
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 -translate-y-2"
-                         x-transition:enter-end="opacity-100 translate-y-0"
-                         class="pl-4 mt-1 space-y-1">
-                        @if(Auth::user()->classrooms->isEmpty())
-                            <a href="{{ route('classroom.list') }}"
-                               class="flex items-center px-2 py-2 text-sm text-gray-400 rounded-lg hover:bg-pink-500/10 hover:text-pink-500">
+                    <div x-show="open" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" class="pl-4 mt-1 space-y-1">
+                        @forelse($classrooms as $classroom)
+                            <a href="{{ route('classroom.show', $classroom->name) }}" class="flex items-center px-2 py-2 text-sm text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->is('classroom/'.$classroom->name.'*') ? 'bg-pink-500/10 text-pink-500' : '' }}">
                                 <i class="fi fi-rr-apps text-lg"></i>
-                                <span class="ml-3">Join a Classroom</span>
+                                <span class="ml-3">{{ $classroom->name }}</span>
                             </a>
-                        @else
-                            @foreach(Auth::user()->classrooms()->orderBy('name')->get() as $classroom)
-                                <a href="{{ route('classroom.show', $classroom->name) }}"
-                                   class="flex items-center px-2 py-2 text-sm text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->is('classroom/'.$classroom->name) ? 'bg-pink-500/10 text-pink-500' : '' }}">
+                        @empty
+                            <span class="block px-2 py-2 text-sm text-gray-400">Belum ada classroom</span>
+                        @endforelse
+                    </div>
+                </li>
+                @if($inClassroom)
+                    @php
+                        $currentClass = null;
+                        foreach($classrooms as $c) {
+                            if(request()->is('classroom/'.$c->name.'*')) {
+                                $currentClass = $c;
+                                break;
+                            }
+                        }
+                    @endphp
+                    {{-- Hapus menu Materials dan Exercise di dalam classroom untuk student --}}
+                @else
+                    {{-- Hapus menu Materials dan Exercise di luar classroom untuk student --}}
+                @endif
+                <li class="relative">
+                    <a href="{{ route('dictionary.index') }}" title="Dictionary" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('dictionary*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rr-book-open-reader text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Dictionary</span>
+                    </a>
+                </li>
+            @else
+                <li class="relative">
+                    <a href="{{ route('home') }}" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('/') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rs-home text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Home</span>
+                    </a>
+                </li>
+                <li class="relative">
+                    <a href="/classroom" title="Classroom" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('classroom*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rs-chalkboard text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Classroom</span>
+                    </a>
+                </li>
+                <li class="relative">
+                    <a href="{{ route('materials.index') }}" title="Materials" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('materials*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rr-book-open-reader text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Materials</span>
+                    </a>
+                </li>
+                <li class="relative">
+                    <a href="/exercises" title="Exercise" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('exercises*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rr-pencil text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Exercise</span>
+                    </a>
+                </li>
+                @if(auth()->user()->role !== 'student')
+                <li class="relative">
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open"
+                                class="flex items-center w-full px-2 py-2 text-sm font-medium text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('attendance.*') ? 'bg-pink-500/10 text-pink-500' : '' }} relative group">
+                            <i class="fi fi-rr-calendar-check text-lg"></i>
+                            <span class="flex-1 ml-3 text-left transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Attendance</span>
+                            <i class="fi fi-rr-angle-small-down text-lg transition-transform" :class="{ 'rotate-180': open }"></i>
+                        </button>
+                        
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-2"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="pl-4 mt-1 space-y-1">
+                            @foreach(\App\Models\Classroom::where('teacher_id', Auth::id())->orderBy('name')->get() as $classroom)
+                                <a href="{{ route('attendance.show', $classroom) }}"
+                                   class="flex items-center px-2 py-2 text-sm text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->is('attendance/'.$classroom->id) ? 'bg-pink-500/10 text-pink-500' : '' }}">
                                     <i class="fi fi-rr-apps text-lg"></i>
                                     <span class="ml-3">{{ $classroom->name }}</span>
                                 </a>
                             @endforeach
-                        @endif
+                        </div>
                     </div>
-                </div>
-            </li>
-            @else
-            <li class="relative">
-                <a href="/classroom" title="Classroom" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('classroom*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <i class="fi fi-rs-chalkboard text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Classroom</span>
-                </a>
-            </li>
-            @endif
-            <li class="relative">
-                <a href="{{ route('materials.index') }}" title="Materials" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('materials*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <i class="fi fi-rr-book-open-reader text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Materials</span>
-                </a>
-            </li>
-            <li class="relative">
-                <a href="/exercises" title="Exercise" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('exercises*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <i class="fi fi-rr-pencil text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Exercise</span>
-                </a>
-            </li>
-            @if(auth()->user()->role !== 'student')
-            <li class="relative">
-                <div x-data="{ open: false }" class="relative">
-                    <button @click="open = !open"
-                            class="flex items-center w-full px-2 py-2 text-sm font-medium text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('attendance.*') ? 'bg-pink-500/10 text-pink-500' : '' }} relative group">
-                        <i class="fi fi-rr-calendar-check text-lg"></i>
-                        <span class="flex-1 ml-3 text-left transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Attendance</span>
-                        <i class="fi fi-rr-angle-small-down text-lg transition-transform" :class="{ 'rotate-180': open }"></i>
-                    </button>
-                    
-                    <div x-show="open" 
-                         x-transition:enter="transition ease-out duration-200"
-                         x-transition:enter-start="opacity-0 -translate-y-2"
-                         x-transition:enter-end="opacity-100 translate-y-0"
-                         class="pl-4 mt-1 space-y-1">
-                        @foreach(\App\Models\Classroom::orderBy('name')->get() as $classroom)
-                            <a href="{{ route('attendance.show', $classroom) }}"
-                               class="flex items-center px-2 py-2 text-sm text-white rounded-lg hover:bg-pink-500/10 hover:text-pink-500 {{ request()->is('attendance/'.$classroom->id) ? 'bg-pink-500/10 text-pink-500' : '' }}">
-                                <i class="fi fi-rr-apps text-lg"></i>
-                                <span class="ml-3">{{ $classroom->name }}</span>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            </li>
-            <li class="relative">
-                <a href="{{ route('games.index') }}" title="Games" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('games*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <i class="fi fi-rr-gamepad text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Games</span>
-                </a>
-            </li>
-            <li class="relative">
-                <a href="{{ route('voca.chat') }}" title="Voca AI" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('voca*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <span class="mr-2" style="min-width:20px;display:flex;align-items:center;">
-                        <img src="{{ asset('img/VocaLogoOnly.png') }}" alt="Voca AI" width="20" height="20" class="w-5 h-5">
-                    </span>
-                    <span class="ml-1 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Voca AI</span>
-                </a>
-            </li>
-            @endif
-            <li class="relative">
-                <a href="{{ route('dictionary.index') }}" title="Dictionary" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('dictionary*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
-                    <i class="fi fi-rr-book-open-reader text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Dictionary</span>
-                </a>
-            </li>
-            <!-- Admin Only: Teacher Registration -->
-            @if(auth()->user()->role === 'admin')
-            <li class="relative">
-                <a href="{{ route('teacher.registration.simple.form') }}" title="Teacher Registration" class="flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('teacher.registration.simple.form') ? 'bg-pink-500/10 text-pink-500' : 'text-white' }} group">
-                    <i class="fi fi-rr-user-add text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Teacher Registration</span>
-                </a>
-            </li>
-            <li class="relative">
-                <a href="{{ route('admin.users.index') }}" title="User Management" class="flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('admin.users.index') ? 'bg-pink-500/10 text-pink-500' : 'text-white' }} group">
-                    <i class="fi fi-rr-users text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">User Management</span>
-                </a>
-            </li>
-            <li class="relative">
-                <a href="{{ route('admin.news.index') }}" title="News Management" class="flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('admin.news.*') ? 'bg-pink-500/10 text-pink-500' : 'text-white' }} group">
-                    <i class="fi fi-rr-bullhorn text-lg"></i>
-                    <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">News Management</span>
-                </a>
-            </li>
+                </li>
+                <li class="relative">
+                    <a href="{{ route('games.index') }}" title="Games" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('games*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rr-gamepad text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Games</span>
+                    </a>
+                </li>
+                <li class="relative">
+                    <a href="{{ route('voca.chat') }}" title="Voca AI" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('voca*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <span class="mr-2" style="min-width:20px;display:flex;align-items:center;">
+                            <img src="{{ asset('img/VocaLogoOnly.png') }}" alt="Voca AI" width="20" height="20" class="w-5 h-5">
+                        </span>
+                        <span class="ml-1 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Voca AI</span>
+                    </a>
+                </li>
+                @endif
+                <li class="relative">
+                    <a href="{{ route('dictionary.index') }}" title="Dictionary" class="flex items-center px-2 py-2.5 rounded-lg transition-colors {{ request()->is('dictionary*') ? 'bg-pink-500/10 text-pink-500' : 'hover:bg-pink-500/10 hover:text-pink-500' }} group">
+                        <i class="fi fi-rr-book-open-reader text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Dictionary</span>
+                    </a>
+                </li>
+                <!-- Admin Only: Teacher Registration -->
+                @if(auth()->user()->role === 'admin')
+                <li class="relative">
+                    <a href="{{ route('teacher.registration.simple.form') }}" title="Teacher Registration" class="flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('teacher.registration.simple.form') ? 'bg-pink-500/10 text-pink-500' : 'text-white' }} group">
+                        <i class="fi fi-rr-user-add text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Teacher Registration</span>
+                    </a>
+                </li>
+                <li class="relative">
+                    <a href="{{ route('admin.users.index') }}" title="User Management" class="flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('admin.users.index') ? 'bg-pink-500/10 text-pink-500' : 'text-white' }} group">
+                        <i class="fi fi-rr-users text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">User Management</span>
+                    </a>
+                </li>
+                <li class="relative">
+                    <a href="{{ route('admin.news.index') }}" title="News Management" class="flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500 {{ request()->routeIs('admin.news.*') ? 'bg-pink-500/10 text-pink-500' : 'text-white' }} group">
+                        <i class="fi fi-rr-bullhorn text-lg"></i>
+                        <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">News Management</span>
+                    </a>
+                </li>
+                @endif
             @endif
         </ul>
     </div>
@@ -181,9 +197,9 @@
                 <p class="text-xs text-gray-400 capitalize">{{ auth()->user()->role }}</p>
             </div>
         </div>
-        <form method="POST" action="{{ route('logout') }}">
+        <form id="logoutForm" method="POST" action="{{ route('logout') }}">
             @csrf
-            <button type="submit" class="w-full flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500">
+            <button type="button" onclick="openLogoutConfirmationModal()" class="w-full flex items-center px-2 py-2.5 rounded-lg transition-colors hover:bg-pink-500/10 hover:text-pink-500">
                 <i class="fi fi-rr-sign-out-alt text-lg"></i>
                 <span class="ml-3 text-sm transition-opacity duration-300" :class="{ 'opacity-0': !isOpen }">Logout</span>
             </button>
@@ -237,3 +253,5 @@
     background-color: #fff !important;
   }
 </style>
+
+@include('components.modals.logout-confirmation-modal')

@@ -5,7 +5,15 @@
     <div class="py-10">
         <div class="flex justify-between">
             <h1 class="text-gray-500 text-xl">EXERCISES</h1>
-            <button class="text-gray-500 text-xl hover:text-white">See All</button>
+            @if(auth()->user()->role === 'student')
+                <a href="{{ route('exercises.my_results') }}"
+                   class="px-4 py-2 border-2 border-pink-500 text-pink-500 rounded-lg hover:opacity-90 transition-opacity flex items-center">
+                    <i class="fi fi-rr-list mr-2"></i>
+                    My Exercise Results
+                </a>
+            @else
+                <button class="text-gray-500 text-xl hover:text-white">See All</button>
+            @endif
         </div>
 
         <div class="list-exercises w-full space-y-5 pt-5">
@@ -32,7 +40,7 @@
                             @else
                                 <a href="{{ route('classroom.exercise.take', ['className' => $classroom->name, 'exerciseId' => $exercise->id]) }}" 
                                    class="rounded-lg px-4 py-2 text-gray-300 border border-transparent hover:border-pink-500 hover:text-pink-500 hover:bg-pink-950/20 transition-all duration-300 uppercase tracking-wider text-sm font-medium">
-                                    Take Exercise
+                                    Kerjakan
                                 </a>
                             @endif
                             @if(auth()->user()->role !== 'student')

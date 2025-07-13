@@ -45,7 +45,17 @@
             @endif
         </div>
 
-        @if($materials->count() > 0)
+        @if(auth()->user()->role === 'student' && $noClassroomJoined)
+            <div class="bg-[#211F27] rounded-lg shadow-lg border border-white/20 p-8 text-center">
+                <div class="mb-4">
+                    <i class="fi fi-rr-sad-tear text-pink-500 text-5xl"></i>
+                </div>
+                <h3 class="text-white text-xl font-semibold mb-2">Materials belum tersedia</h3>
+                <p class="text-gray-400 mb-4">
+                    Silahkan bergabung ke dalam classroom terlebih dahulu untuk melihat materials.
+                </p>
+            </div>
+        @elseif($materials->count() > 0)
             <div class="space-y-4">
                 @foreach($materials as $category => $topicGroups)
                     <div class="material-category" data-category="{{ $category }}">
@@ -100,6 +110,9 @@
                                                                     <h5 class="text-white font-medium">{{ $material->title }}</h5>
                                                                 </div>
                                                                 <p class="text-gray-400 text-sm mt-1">{{ $material->description ?: 'No description' }}</p>
+                                                                @if($material->creator)
+                                                                    <p class="text-gray-500 text-xs mt-1"><i class="fi fi-rr-user mr-1"></i>By {{ $material->creator->name }}</p>
+                                                                @endif
                                                                 <div class="flex items-center space-x-2 mt-2">
                                                                     <span class="text-xs text-gray-500">
                                                                         <i class="fi fi-rr-clock mr-1"></i>

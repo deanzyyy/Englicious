@@ -15,7 +15,8 @@ class Classroom extends Model
         'name',
         'description',
         'password',
-        'teacher_id'
+        'teacher_id',
+        'password_changed_at',
     ];
 
     public function teacher()

@@ -15,7 +15,8 @@ class Material extends Model
         'file_path',
         'topic_id',
         'subtopic_id',
-        'category'
+        'category',
+        'created_by'
     ];
 
     protected $with = ['topic', 'subtopic'];
@@ -34,5 +35,10 @@ class Material extends Model
     {
         return $this->belongsToMany(Classroom::class, 'classroom_material')
                     ->withTimestamps();
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

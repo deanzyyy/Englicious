@@ -42,7 +42,10 @@
                     <p class="text-gray-400 text-lg mt-2">{{ $desc }}</p>
                 </div>
                 @if (Auth::check() && Auth::user()->role === 'student')
-                <div>
+                <div class="flex gap-2">
+                    <a href="{{ route('home') }}" class="w-25 h-10 flex items-center justify-center text-white bg-gradient-to-r from-gray-500 to-gray-700 rounded-lg hover:bg-none hover:border-2 hover:border-white transition-all duration-300">
+                        <i class="fi fi-rr-arrow-left text-lg mr-2"></i>Back
+                    </a>
                     <form id="leave-classroom-form" action="{{ route('classroom.leave', $classroom->name) }}" method="POST" style="display: none;">
                         @csrf
                     </form>

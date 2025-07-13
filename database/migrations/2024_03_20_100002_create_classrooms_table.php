@@ -15,6 +15,7 @@ return new class extends Migration
             $table->foreignId('teacher_id')->constrained('users')->onDelete('cascade');
             $table->string('code')->unique();
             $table->string('password');
+            $table->timestamp('password_changed_at')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

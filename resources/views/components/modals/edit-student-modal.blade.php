@@ -1,5 +1,5 @@
 <!-- Edit Student Modal -->
-<div id="editStudentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+<div id="editStudentModal" class="hidden fixed inset-0 bg-opacity-50 z-50">
     <div class="fixed inset-0 flex items-center justify-center p-4">
         <div class="bg-[#211F27] rounded-lg shadow-lg border border-pink-500/20 w-full max-w-md">
             <div class="p-6">

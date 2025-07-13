@@ -1,7 +1,5 @@
-
-
 <?php $__env->startSection('content'); ?>
-<div class="ml-64 p-10">
+<div class="p-6">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">Create New Game</h1>
         <p class="text-gray-400">Setup a new educational game for your classroom</p>
@@ -152,6 +150,28 @@ unset($__errorArgs, $__bag); ?>
                     <label class="block text-pink-500 text-sm font-medium mb-2">
                         <span id="setupLabel">Players/Teams</span> Setup
                     </label>
+                    
+                    <!-- Online Mode - Waiting for participants -->
+                    <div id="onlineParticipantsContainer" style="display: none;">
+                        <div class="bg-[#2A2A32] rounded-lg p-4 border border-pink-500/20">
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <i class="fi fi-rr-users text-pink-500 text-4xl mb-2"></i>
+                                </div>
+                                <h3 class="text-white text-lg font-semibold mb-2">Waiting for Participants</h3>
+                                <p class="text-gray-400 mb-4">Students will join the game when it starts</p>
+                                <div class="bg-[#211F27] rounded-lg p-4 border border-pink-500/20">
+                                    <div class="text-sm text-gray-400">
+                                        <p><strong>Online Mode:</strong> Students can join and participate directly in the game.</p>
+                                        <p class="mt-2">Participants will appear here once they join the game.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Offline Mode - Manual player setup -->
+                    <div id="offlinePlayersContainer">
                     <div id="playersContainer">
                         <div class="player-item bg-[#2A2A32] rounded-lg p-4 mb-4 border border-pink-500/20">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -184,6 +204,7 @@ unset($__errorArgs, $__bag); ?>
                             class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity">
                         Add <span id="addButtonText">Player</span>
                     </button>
+                    </div>
                 </div>
 
                 <!-- Submit Buttons -->
@@ -212,6 +233,33 @@ function updateLabels() {
     const addButtonText = document.getElementById('addButtonText');
     const membersContainers = document.querySelectorAll('#membersContainer');
     const setupLabel = document.getElementById('setupLabel');
+    const onlineParticipantsContainer = document.getElementById('onlineParticipantsContainer');
+    const offlinePlayersContainer = document.getElementById('offlinePlayersContainer');
+    
+    // Handle online/offline mode switching
+    if (type === 'online') {
+        // Show online participants container
+        onlineParticipantsContainer.style.display = 'block';
+        offlinePlayersContainer.style.display = 'none';
+        setupLabel.textContent = 'Players Participants';
+        
+        // Disable player name inputs for online mode
+        const playerInputs = document.querySelectorAll('input[name^="players"][name$="[name]"]');
+        playerInputs.forEach(input => {
+            input.removeAttribute('required');
+            input.disabled = true;
+        });
+    } else {
+        // Show offline players container
+        onlineParticipantsContainer.style.display = 'none';
+        offlinePlayersContainer.style.display = 'block';
+        
+        // Enable player name inputs for offline mode
+        const playerInputs = document.querySelectorAll('input[name^="players"][name$="[name]"]');
+        playerInputs.forEach(input => {
+            input.setAttribute('required', 'required');
+            input.disabled = false;
+        });
     
     if (mode === 'group') {
         labels.forEach(label => label.textContent = 'Team');
@@ -223,6 +271,7 @@ function updateLabels() {
         addButtonText.textContent = 'Player';
         membersContainers.forEach(container => container.style.display = 'none');
         setupLabel.textContent = 'Players';
+        }
     }
     
     // Update type info
@@ -242,6 +291,7 @@ function addPlayer() {
     playerCount++;
     const container = document.getElementById('playersContainer');
     const mode = document.querySelector('input[name="mode"]:checked')?.value;
+    const type = document.querySelector('input[name="type"]:checked')?.value;
     
     const playerDiv = document.createElement('div');
     playerDiv.className = 'player-item bg-[#2A2A32] rounded-lg p-4 mb-4 border border-pink-500/20';
@@ -251,9 +301,9 @@ function addPlayer() {
                 <label class="block text-white text-sm font-medium mb-2">
                     <span class="player-label">${mode === 'group' ? 'Team' : 'Player'}</span> Name
                 </label>
-                <input type="text" name="players[${playerCount}][name]" required
+                <input type="text" name="players[${playerCount}][name]" ${type === 'offline' ? 'required' : ''}
                        class="w-full bg-[#211F27] border border-pink-500/20 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:border-pink-500 focus:outline-none"
-                       placeholder="Enter name...">
+                       placeholder="Enter name..." ${type === 'online' ? 'disabled' : ''}>
             </div>
             <div class="members-container" style="display: ${mode === 'group' ? 'block' : 'none'};">
                 <label class="block text-white text-sm font-medium mb-2">Team Members</label>
@@ -282,6 +332,29 @@ function addPlayer() {
 function removePlayer(button) {
     button.parentElement.remove();
 }
+
+// Form validation
+document.getElementById('gameForm').addEventListener('submit', function(e) {
+    const type = document.querySelector('input[name="type"]:checked')?.value;
+    
+    if (type === 'offline') {
+        // For offline mode, ensure at least one player is added
+        const playerInputs = document.querySelectorAll('input[name^="players"][name$="[name]"]');
+        let hasValidPlayer = false;
+        
+        playerInputs.forEach(input => {
+            if (input.value.trim() !== '') {
+                hasValidPlayer = true;
+            }
+        });
+        
+        if (!hasValidPlayer) {
+            e.preventDefault();
+            alert('Please add at least one player for offline mode.');
+            return false;
+        }
+    }
+});
 
 // Update labels when mode changes
 document.querySelectorAll('input[name="mode"]').forEach(radio => {

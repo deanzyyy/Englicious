@@ -163,6 +163,40 @@
                 </div>
             </div>
 
+            <!-- Students List (Participants) -->
+            <div class="bg-[#211F27] rounded-lg p-6 border border-pink-500/20">
+                <h3 class="text-lg font-semibold text-white mb-4">Participants</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    @forelse($game->players as $player)
+                        <div class="p-4 bg-[#2A2A32] rounded-lg border border-pink-500/20">
+                            <div class="text-center">
+                                <div class="text-white font-medium mb-2">{{ $player->student_name ?? $player->user->name ?? 'Unknown' }}</div>
+                                <div class="text-gray-400 text-sm">Student</div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-span-4 text-center text-gray-400">No participants yet.</div>
+                    @endforelse
+                </div>
+            </div>
+
+            <!-- Game Controls -->
+            <div class="mt-6 flex gap-4">
+                <button onclick="nextQuestion()" id="nextButton" 
+                        class="px-6 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity" style="display: none;">
+                    Next Question
+                </button>
+                <button onclick="finishGame()" id="finishButton" 
+                        class="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity" style="display: none;">
+                    Finish Game
+                </button>
+                @if($game->status === 'draft' && $game->players->count() > 0)
+                <button type="button" id="startGameBtn" class="px-6 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity">
+                    Start Game
+                </button>
+                @endif
+            </div>
+
         @else
             <!-- Teacher View for Online Mode - Can Monitor -->
             <!-- Game Info -->
@@ -226,9 +260,11 @@ let questions = @json($game->exercise->questions);
 let players = @json($game->players);
 let scores = {};
 let timer;
-let timeLeft = 30;
+let timeLeft = 15;
+let hasAnswered = false;
 let gameType = '{{ $game->type }}';
 let userRole = '{{ auth()->user()->role }}';
+let isOnlineTeacher = {{ ($game->type === 'online' && auth()->user()->role !== 'student') ? 'true' : 'false' }};
 
 // Initialize scores
 players.forEach(player => {
@@ -236,6 +272,8 @@ players.forEach(player => {
 });
 
 function startGame() {
+    hasAnswered = false;
+    currentQuestionIndex = 0;
     if (gameType === 'offline' && userRole === 'student') {
         loadQuestionReadOnly();
     } else {
@@ -249,7 +287,9 @@ function loadQuestion() {
         finishGame();
         return;
     }
-
+    hasAnswered = false;
+    timeLeft = 15;
+    document.getElementById('timer').textContent = timeLeft;
     const question = questions[currentQuestionIndex];
     document.getElementById('questionNumber').textContent = currentQuestionIndex + 1;
     document.getElementById('questionText').textContent = question.question_text;
@@ -260,7 +300,7 @@ function loadQuestion() {
     if (question.options) {
         question.options.forEach((option, index) => {
             const optionDiv = document.createElement('div');
-            optionDiv.className = 'p-3 bg-[#2A2A32] rounded-lg border border-pink-500/20 hover:border-pink-500/40 transition-all cursor-pointer';
+            optionDiv.className = 'p-3 bg-[#2A2A32] rounded-lg border border-pink-500/20' + (isOnlineTeacher ? '' : ' hover:border-pink-500/40 transition-all cursor-pointer');
             optionDiv.innerHTML = `
                 <div class="flex items-center">
                     <span class="w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 text-sm font-medium mr-3 flex items-center justify-center">
@@ -269,7 +309,9 @@ function loadQuestion() {
                     <span class="text-white">${option}</span>
                 </div>
             `;
-            optionDiv.onclick = () => selectAnswer(index);
+            if (!isOnlineTeacher && userRole === 'student') {
+                optionDiv.onclick = () => selectAnswer(index);
+            }
             optionsContainer.appendChild(optionDiv);
         });
     }
@@ -305,25 +347,31 @@ function loadQuestionReadOnly() {
 }
 
 function selectAnswer(selectedIndex) {
+    if (hasAnswered) return;
+    hasAnswered = true;
     const question = questions[currentQuestionIndex];
     const isCorrect = selectedIndex === question.correct_answer;
-    
-    // Calculate score based on time left
+    // SCORING SYSTEM
+    // 1 soal = 2000 point (jika total soal 10)
+    // Skor = 2000 - ((15 - sisa_detik) * 100) jika benar, 0 jika salah
+    let maxPoint = 2000;
+    let pointPerSecond = 100;
+    let secondsUsed = 15 - timeLeft;
     let points = 0;
     if (isCorrect) {
-        points = Math.max(1, Math.floor(timeLeft / 3));
+        points = maxPoint - (secondsUsed * pointPerSecond);
+        if (points < 0) points = 0;
     }
-    
     // Highlight correct answer
     const options = document.querySelectorAll('#optionsContainer > div');
     options.forEach((option, index) => {
+        option.onclick = null;
         if (index === question.correct_answer) {
             option.classList.add('border-green-500', 'bg-green-500/20');
         } else if (index === selectedIndex && !isCorrect) {
             option.classList.add('border-red-500', 'bg-red-500/20');
         }
     });
-    
     // Show result
     const resultDiv = document.createElement('div');
     resultDiv.className = `mt-4 p-4 rounded-lg ${isCorrect ? 'bg-green-500/20 border border-green-500' : 'bg-red-500/20 border border-red-500'}`;
@@ -331,27 +379,15 @@ function selectAnswer(selectedIndex) {
         <div class="flex items-center">
             <i class="fi ${isCorrect ? 'fi-rr-check text-green-400' : 'fi-rr-cross text-red-400'} text-xl mr-2"></i>
             <span class="text-white font-medium">${isCorrect ? 'Correct!' : 'Incorrect!'}</span>
-            ${isCorrect ? `<span class="ml-2 text-green-400">+${points} points</span>` : ''}
+            <span class="ml-2 text-pink-400">${isCorrect ? `+${points} points` : '+0 points'}</span>
         </div>
     `;
     document.getElementById('questionContainer').appendChild(resultDiv);
-    
-    // Stop timer
-    clearInterval(timer);
-    
     // If student in online mode, send score
     if (gameType === 'online' && userRole === 'student') {
         sendStudentScore(points);
     }
-    
-    // Show next/finish button for teachers
-    if (userRole !== 'student') {
-        if (currentQuestionIndex < questions.length - 1) {
-            document.getElementById('nextButton').style.display = 'block';
-        } else {
-            document.getElementById('finishButton').style.display = 'block';
-        }
-    }
+    // Timer tetap berjalan, soal baru next jika timer habis
 }
 
 function sendStudentScore(points) {
@@ -370,35 +406,28 @@ function sendStudentScore(points) {
 }
 
 function nextQuestion() {
+    clearInterval(timer);
     currentQuestionIndex++;
-    timeLeft = 30;
-    document.getElementById('timer').textContent = timeLeft;
-    document.getElementById('nextButton').style.display = 'none';
-    document.getElementById('finishButton').style.display = 'none';
-    
-    // Remove result message
-    const resultDiv = document.querySelector('#questionContainer > div:last-child');
-    if (resultDiv && resultDiv.classList.contains('mt-4')) {
-        resultDiv.remove();
-    }
-    
-    if (gameType === 'offline' && userRole === 'student') {
-        loadQuestionReadOnly();
-    } else {
-        loadQuestion();
-        startTimer();
-    }
+    loadQuestion();
+    startTimer();
 }
 
 function startTimer() {
     clearInterval(timer);
+    document.getElementById('timer').textContent = timeLeft;
     timer = setInterval(() => {
         timeLeft--;
         document.getElementById('timer').textContent = timeLeft;
-        
         if (timeLeft <= 0) {
             clearInterval(timer);
-            selectAnswer(-1);
+            if (!hasAnswered) {
+                selectAnswer(-1); // -1 means no answer selected
+            }
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadQuestion();
+                startTimer();
+            }, 1000);
         }
     }, 1000);
 }
@@ -484,6 +513,38 @@ function loadStudents() {
         `;
         
         container.appendChild(studentDiv);
+    });
+}
+
+// Start Game AJAX
+const startGameBtn = document.getElementById('startGameBtn');
+if (startGameBtn) {
+    startGameBtn.addEventListener('click', function() {
+        startGameBtn.disabled = true;
+        startGameBtn.textContent = 'Starting...';
+        fetch("{{ route('games.startGame', $game) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to start game');
+                startGameBtn.disabled = false;
+                startGameBtn.textContent = 'Start Game';
+            }
+        })
+        .catch(() => {
+            alert('Failed to start game');
+            startGameBtn.disabled = false;
+            startGameBtn.textContent = 'Start Game';
+        });
     });
 }
 

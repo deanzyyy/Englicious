@@ -1,5 +1,3 @@
-
-
 <?php $__env->startSection('content'); ?>
 <div class="mt-8">
     <div class="flex justify-between items-center mb-8">
@@ -63,46 +61,52 @@
             </div>
 
             <div class="flex gap-2">
-                <?php if($game->status === 'draft'): ?>
-                    <?php if(auth()->user()->role !== 'student'): ?>
-                        <button onclick="startGame(<?php echo e($game->id); ?>)" 
-                                class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm">
-                            Start Game
-                        </button>
-                    <?php endif; ?>
-                <?php elseif($game->status === 'ongoing'): ?>
-                    <?php if($game->type === 'offline'): ?>
-                        <?php if(auth()->user()->role === 'student'): ?>
-                            <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                View Games
-                            </a>
+                <?php if(auth()->user()->role === 'student' && $game->type === 'online' && in_array($game->status, ['draft', 'ongoing'])): ?>
+                    <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>"
+                       class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                        Join the Game
+                    </a>
+                <?php else: ?>
+                    <?php if($game->status === 'draft'): ?>
+                        <?php if(auth()->user()->role !== 'student'): ?>
+                            <button onclick="startGame(<?php echo e($game->id); ?>)" 
+                                    class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm">
+                                Start Game
+                            </button>
+                        <?php endif; ?>
+                    <?php elseif($game->status === 'ongoing'): ?>
+                        <?php if($game->type === 'offline'): ?>
+                            <?php if(auth()->user()->role === 'student'): ?>
+                                <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    View Games
+                                </a>
+                            <?php else: ?>
+                                <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    Continue Playing
+                                </a>
+                            <?php endif; ?>
                         <?php else: ?>
-                            <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                Continue Playing
-                            </a>
+                            <?php if(auth()->user()->role === 'student'): ?>
+                                <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    Join the Game
+                                </a>
+                            <?php else: ?>
+                                <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    Continue Playing
+                                </a>
+                            <?php endif; ?>
                         <?php endif; ?>
                     <?php else: ?>
-                        <?php if(auth()->user()->role === 'student'): ?>
-                            <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                Join the Game
-                            </a>
-                        <?php else: ?>
-                            <a href="<?php echo e(route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                Continue Playing
-                            </a>
-                        <?php endif; ?>
+                        <a href="<?php echo e(route('classroom.games.scoreboard', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
+                           class="flex-1 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                            View Results
+                        </a>
                     <?php endif; ?>
-                <?php else: ?>
-                    <a href="<?php echo e(route('classroom.games.scoreboard', ['className' => $classroom->name, 'game' => $game->id])); ?>" 
-                       class="flex-1 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                        View Results
-                    </a>
                 <?php endif; ?>
-                
                 <?php if(auth()->user()->role !== 'student'): ?>
                 <div class="flex gap-1">
                     <a href="<?php echo e(route('games.edit', $game)); ?>" 

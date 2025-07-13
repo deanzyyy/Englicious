@@ -16,50 +16,90 @@ class MaterialController extends Controller
     public function index(Request $request)
     {
         try {
+            $user = Auth::user();
             $query = Material::with([
                 'topic' => function($q) {
                     $q->select('id', 'name', 'category');
                 },
                 'subtopic' => function($q) {
                     $q->select('id', 'name', 'topic_id');
-                }
+                },
+                'creator'
             ]);
 
             $allCategories = Topic::select('category')
                 ->distinct()
                 ->pluck('category');
 
-            $materials = $query->orderBy('created_at', 'desc') 
-                             ->get();
+            $materials = collect(); // Initialize as empty collection
+            $noClassroomJoined = false; // Flag for student with no classrooms
 
-            $groupedMaterials = collect();
-
-            if ($request->has('category') && $request->category !== 'all') {
-                $filteredMaterials = $materials->filter(function ($material) use ($request) {
-                    return optional($material->topic)->category === $request->category;
-                });
-                
-                if ($filteredMaterials->isNotEmpty()) {
-                    $groupedMaterials[$request->category] = $filteredMaterials->groupBy(function ($material) {
-                        return optional($material->topic)->name ?? 'Uncategorized';
-                    });
+            if ($user && $user->role === 'student') {
+                $studentClassrooms = $user->classrooms; // Assuming a 'classrooms' relationship on the User model
+                if ($studentClassrooms->isEmpty()) {
+                    $noClassroomJoined = true;
+                } else {
+                    $classroomIds = $studentClassrooms->pluck('id')->toArray();
+                    $materials = Material::whereHas('classrooms', function ($q) use ($classroomIds) {
+                                        $q->whereIn('classrooms.id', $classroomIds);
+                                    })
+                                    ->with(['topic' => function($q) {
+                                        $q->select('id', 'name', 'category');
+                                    },
+                                    'subtopic' => function($q) {
+                                        $q->select('id', 'name', 'topic_id');
+                                    }])
+                                    ->orderBy('created_at', 'desc')
+                                    ->get();
                 }
             } else {
-                // Show all categories if no filter or 'all' is selected
-                $groupedMaterials = $materials->groupBy(function ($material) {
-                    return optional($material->topic)->category ?? 'Uncategorized';
-                })->map(function ($categoryMaterials) {
-                    return $categoryMaterials->groupBy(function ($material) {
-                        return optional($material->topic)->name ?? 'Uncategorized';
+                // For non-student roles (teacher/admin) or if no user is logged in
+                if ($user && $user->role === 'teacher') {
+                    // Teachers only see materials they created
+                    $materials = $query->where('created_by', $user->id)
+                                     ->orderBy('created_at', 'desc')
+                                     ->get();
+                } elseif ($user && $user->role === 'admin') {
+                    // Admins see all materials
+                    $materials = $query->orderBy('created_at', 'desc')
+                                     ->get();
+                } else {
+                    // If no user or other roles, fetch all materials (default behavior)
+                    $materials = $query->orderBy('created_at', 'desc')
+                                     ->get();
+                }
+            }
+
+            $groupedMaterials = collect();
+            if (!$noClassroomJoined) { // Only group materials if student has joined classrooms or if it's not a student
+                if ($request->has('category') && $request->category !== 'all') {
+                    $filteredMaterials = $materials->filter(function ($material) use ($request) {
+                        return optional($material->topic)->category === $request->category;
                     });
-                });
+                    
+                    if ($filteredMaterials->isNotEmpty()) {
+                        $groupedMaterials[$request->category] = $filteredMaterials->groupBy(function ($material) {
+                            return optional($material->topic)->name ?? 'Uncategorized';
+                        });
+                    }
+                } else {
+                    // Show all categories if no filter or 'all' is selected
+                    $groupedMaterials = $materials->groupBy(function ($material) {
+                        return optional($material->topic)->category ?? 'Uncategorized';
+                    })->map(function ($categoryMaterials) {
+                        return $categoryMaterials->groupBy(function ($material) {
+                            return optional($material->topic)->name ?? 'Uncategorized';
+                        });
+                    });
+                }
             }
 
             return view('materials.index', [
                 'materials' => $groupedMaterials,
                 'allCategories' => $allCategories,
                 'total_materials' => $materials->count(),
-                'currentCategory' => $request->category ?? 'all'
+                'currentCategory' => $request->category ?? 'all',
+                'noClassroomJoined' => $noClassroomJoined // Pass the flag to the view
             ]);
 
         } catch (\Exception $e) {
@@ -126,6 +166,7 @@ class MaterialController extends Controller
                 'topic_id' => $request->topic_id,
                 'subtopic_id' => $request->subtopic_id,
                 'file_path' => $filePath,
+                'created_by' => Auth::id(),
             ]);
 
             return redirect()->route('materials.index')

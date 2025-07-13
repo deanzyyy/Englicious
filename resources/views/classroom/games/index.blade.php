@@ -60,46 +60,52 @@
             </div>
 
             <div class="flex gap-2">
-                @if($game->status === 'draft')
-                    @if(auth()->user()->role !== 'student')
-                        <button onclick="startGame({{ $game->id }})" 
-                                class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm">
-                            Start Game
-                        </button>
-                    @endif
-                @elseif($game->status === 'ongoing')
-                    @if($game->type === 'offline')
-                        @if(auth()->user()->role === 'student')
-                            <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                View Games
-                            </a>
+                @if(auth()->user()->role === 'student' && $game->type === 'online' && in_array($game->status, ['draft', 'ongoing']))
+                    <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}"
+                       class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                        Join the Game
+                    </a>
+                @else
+                    @if($game->status === 'draft')
+                        @if(auth()->user()->role !== 'student')
+                            <button onclick="startGame({{ $game->id }})" 
+                                    class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm">
+                                Start Game
+                            </button>
+                        @endif
+                    @elseif($game->status === 'ongoing')
+                        @if($game->type === 'offline')
+                            @if(auth()->user()->role === 'student')
+                                <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    View Games
+                                </a>
+                            @else
+                                <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    Continue Playing
+                                </a>
+                            @endif
                         @else
-                            <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                Continue Playing
-                            </a>
+                            @if(auth()->user()->role === 'student')
+                                <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    Join the Game
+                                </a>
+                            @else
+                                <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
+                                   class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                                    Continue Playing
+                                </a>
+                            @endif
                         @endif
                     @else
-                        @if(auth()->user()->role === 'student')
-                            <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                Join the Game
-                            </a>
-                        @else
-                            <a href="{{ route('classroom.games.play', ['className' => $classroom->name, 'game' => $game->id]) }}" 
-                               class="flex-1 px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                                Continue Playing
-                            </a>
-                        @endif
+                        <a href="{{ route('classroom.games.scoreboard', ['className' => $classroom->name, 'game' => $game->id]) }}" 
+                           class="flex-1 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
+                            View Results
+                        </a>
                     @endif
-                @else
-                    <a href="{{ route('classroom.games.scoreboard', ['className' => $classroom->name, 'game' => $game->id]) }}" 
-                       class="flex-1 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition-opacity text-center text-sm">
-                        View Results
-                    </a>
                 @endif
-                
                 @if(auth()->user()->role !== 'student')
                 <div class="flex gap-1">
                     <a href="{{ route('games.edit', $game) }}" 

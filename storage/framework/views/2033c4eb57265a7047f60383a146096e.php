@@ -1,5 +1,3 @@
-
-
 <?php $__env->startSection('content'); ?>
 <div class="ml-64 p-10">
     <div class="mb-8">

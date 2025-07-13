@@ -1,4 +1,17 @@
 <x-layout>
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
     <div class="mx-25">
         <div class="p-10 flex justify-between items-center">
             <div>
@@ -73,7 +86,7 @@
                                         <p class="mb-2 text-sm text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
                                         <p class="text-xs text-gray-400">PDF (MAX. 10MB)</p>
                                     </div>
-                                    <input id="pdf_file" name="pdf_file" type="file" class="hidden" accept=".pdf" required />
+                                    <input id="pdf_file" name="pdf_file" type="file" class="sr-only" accept=".pdf" required />
                                 </label>
                             </div>
                             <div id="file-name" class="mt-2 text-sm text-gray-400"></div>
@@ -109,6 +122,46 @@
         // Track form changes
         document.getElementById('materialForm').addEventListener('change', function() {
             hasUnsavedChanges = true;
+        });
+
+        // Handle form submission with proper validation
+        document.getElementById('materialForm').addEventListener('submit', function(e) {
+            const fileInput = document.getElementById('pdf_file');
+            const categorySelect = document.getElementById('category');
+            const topicSelect = document.getElementById('topic_id');
+            const subtopicSelect = document.getElementById('subtopic_id');
+            
+            // Check if file is selected
+            if (!fileInput.files || fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Please select a PDF file to upload.');
+                fileInput.focus();
+                return false;
+            }
+            
+            // Check if category is selected
+            if (!categorySelect.value) {
+                e.preventDefault();
+                alert('Please select a category.');
+                categorySelect.focus();
+                return false;
+            }
+            
+            // Check if topic is selected
+            if (!topicSelect.value) {
+                e.preventDefault();
+                alert('Please select a topic.');
+                topicSelect.focus();
+                return false;
+            }
+            
+            // Check if subtopic is selected
+            if (!subtopicSelect.value) {
+                e.preventDefault();
+                alert('Please select a subtopic.');
+                subtopicSelect.focus();
+                return false;
+            }
         });
 
         // Handle file input change

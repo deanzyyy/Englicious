@@ -40,11 +40,17 @@ class ClassroomController extends Controller
 
     public function classroomList()
     {
-        if (Auth::check() && Auth::user()->role === 'student') {
-            $classrooms = Auth::user()->classrooms()->latest()->get();
-        } else if (Auth::check()) {
-            // Untuk guru/admin
-            $classrooms = Classroom::latest()->get();
+        if (Auth::check()) {
+            $user = Auth::user();
+            if ($user->role === 'student') {
+                $classrooms = $user->classrooms()->latest()->get();
+            } elseif ($user->role === 'teacher' || $user->role === 'admin') {
+                // Untuk guru/admin, tampilkan hanya classroom yang dibuat oleh mereka
+                $classrooms = Classroom::where('teacher_id', $user->id)->latest()->get();
+            } else {
+                // Handle other roles or default to no classrooms if unhandled
+                $classrooms = collect();
+            }
         } else {
             // Jika guest, redirect ke login
             return redirect()->route('login');
@@ -279,7 +285,8 @@ class ClassroomController extends Controller
 
     public function getClassrooms()
     {
-        $classrooms = Classroom::all(['id', 'name']);
+        $teacherId = Auth::id();
+        $classrooms = Classroom::where('teacher_id', $teacherId)->orderBy('name')->get();
         return response()->json($classrooms);
     }
 
@@ -1207,6 +1214,36 @@ class ClassroomController extends Controller
                 'success' => false,
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Update classroom password (teacher/admin only)
+     */
+    public function updatePassword(Request $request, $className)
+    {
+        try {
+            $classroom = Classroom::where('name', $className)->firstOrFail();
+            $user = Auth::user();
+            if (!($user->role === 'admin' || $user->id === $classroom->teacher_id)) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
+            $validated = $request->validate([
+                'password' => 'required|string|min:4|max:8',
+            ], [
+                'password.required' => 'Password wajib diisi.',
+                'password.min' => 'Password minimal 4 karakter.',
+                'password.max' => 'Password maksimal 8 karakter.',
+            ]);
+            $classroom->password = $validated['password'];
+            $classroom->password_changed_at = Carbon::now();
+            $classroom->save();
+            // TODO: Notify students if needed
+            return response()->json(['success' => true, 'message' => 'Password updated successfully.']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'message' => $e->errors()['password'][0] ?? 'Validation failed'], 422);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to update password: ' . $e->getMessage()], 500);
         }
     }
 }

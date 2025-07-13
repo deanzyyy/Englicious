@@ -29,16 +29,27 @@
             <!-- Classroom Grid -->
             <div id="classroom-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php $__empty_1 = true; $__currentLoopData = $classrooms; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $classroom): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                    <div id="classroom-<?php echo e($classroom->id); ?>" 
-                         class="bg-[#211F27] rounded-xl border-2 border-transparent hover:border-pink-500 transition-all duration-200">
+                    <div id="classroom-<?php echo e($classroom->id); ?>" class="bg-[#211F27] rounded-xl border-2 border-transparent hover:border-pink-500 transition-all duration-200 relative">
                         <div class="p-6">
                             <div class="flex items-start justify-between mb-4">
                                 <div>
                                     <h3 class="text-xl font-bold text-white mb-2"><?php echo e($classroom->name); ?></h3>
                                     <p class="text-gray-400 text-sm line-clamp-2"><?php echo e($classroom->description); ?></p>
                                 </div>
-                                <div class="bg-pink-500/20 text-pink-500 px-3 py-1 rounded-full text-sm">
+                                <div class="bg-pink-500/20 text-pink-500 px-3 py-1 rounded-full text-sm flex items-center gap-2">
                                     <?php echo e($classroom->students->count()); ?> Students
+                                    <?php if(Auth::id() === $classroom->teacher_id || (Auth::user() && Auth::user()->role === 'admin')): ?>
+                                        <div class="relative group ml-2">
+                                            <button class="text-white p-1 hover:bg-pink-500/20 rounded-full" onclick="toggleMenu('menu-<?php echo e($classroom->id); ?>')">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm6.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm6.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                                                </svg>
+                                            </button>
+                                            <div id="menu-<?php echo e($classroom->id); ?>" class="hidden absolute right-0 mt-2 w-40 bg-[#211F27] border border-gray-700 rounded-lg shadow-lg z-10">
+                                                <button onclick="openChangePasswordModal('<?php echo e($classroom->name); ?>')" class="block w-full text-left px-4 py-2 text-white hover:bg-pink-500/20">Change Password</button>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             
@@ -180,6 +191,24 @@
                 <p class="text-gray-400 mb-2" id="errorModalMessage">A classroom with this name already exists. Please choose a different name.</p>
             </div>
             <button onclick="closeErrorModal()" class="px-6 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity mt-2">OK</button>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="hidden fixed inset-0 flex items-center justify-center bg-opacity-50 z-50">
+        <div class="bg-white dark:bg-[#211F27] p-6 rounded-lg shadow-lg w-full max-w-sm border border-pink-500">
+            <h2 class="text-xl font-semibold text-white mb-4">Create New Password</h2>
+            <form id="change-password-form" method="POST" action="#" onsubmit="return false;">
+                <?php echo csrf_field(); ?>
+                <input type="hidden" id="change-password-classroom-name" name="className">
+                <input type="password" id="new-classroom-password" name="password" placeholder="New Password (max 8 chars)" maxlength="8" required
+                       class="w-full mb-4 p-2 rounded border border-gray-700 text-white bg-[#2A2833] focus:border-pink-500 focus:outline-none">
+                <div id="change-password-error-message" class="text-red-500 text-sm mb-4 hidden"></div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 border-2 border-pink-500 text-pink-500 hover:bg-red-500 hover:text-white hover:border-0 rounded">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">Change</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -343,6 +372,56 @@
             document.getElementById('errorModal').classList.add('hidden');
             document.getElementById('errorModal').classList.remove('flex');
         }
+
+        function toggleMenu(menuId) {
+            document.querySelectorAll('[id^="menu-"]').forEach(el => el.classList.add('hidden'));
+            const menu = document.getElementById(menuId);
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.group')) {
+                document.querySelectorAll('[id^="menu-"]').forEach(el => el.classList.add('hidden'));
+            }
+        });
+
+        function openChangePasswordModal(className) {
+            document.getElementById('change-password-classroom-name').value = className;
+            document.getElementById('change-password-modal').classList.remove('hidden');
+            document.getElementById('new-classroom-password').value = '';
+            document.getElementById('change-password-error-message').classList.add('hidden');
+        }
+        function closeChangePasswordModal() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+        document.getElementById('change-password-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const className = document.getElementById('change-password-classroom-name').value;
+            const password = document.getElementById('new-classroom-password').value;
+            const errorDiv = document.getElementById('change-password-error-message');
+            errorDiv.classList.add('hidden');
+            try {
+                const response = await fetch(`/classroom/${encodeURIComponent(className)}/password`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    closeChangePasswordModal();
+                    showToast('Password changed successfully');
+                } else {
+                    errorDiv.textContent = data.message || 'Failed to change password';
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (err) {
+                errorDiv.textContent = 'An error occurred';
+                errorDiv.classList.remove('hidden');
+            }
+        });
     </script>
     <?php $__env->stopPush(); ?>
  <?php echo $__env->renderComponent(); ?>

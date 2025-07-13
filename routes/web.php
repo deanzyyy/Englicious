@@ -22,7 +22,12 @@ use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\NewsController;
 use App\Http\Controllers\DictionaryController;
 
-// Landing page tetap publik
+// Landing page as default
+Route::get('/', function () {
+    return view('landing', ['title' => 'landing']);
+});
+
+// (Optional) Keep /landing route for direct access
 Route::get('/landing', function () {
     return view('landing', ['title' => 'landing']);
 });
@@ -46,6 +51,17 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
     Route::post('/register', [RegisterController::class, 'register']);
 });
+
+// Forgot Password Routes
+Route::get('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
+
+// Forgot Password Manual (tanpa email)
+Route::post('/forgot-password/manual', [App\Http\Controllers\Auth\ForgotPasswordManualController::class, 'checkUser'])->name('password.manual.check');
+Route::get('/reset-password/manual', [App\Http\Controllers\Auth\ForgotPasswordManualController::class, 'showResetForm'])->name('password.manual.form');
+Route::post('/reset-password/manual', [App\Http\Controllers\Auth\ForgotPasswordManualController::class, 'reset'])->name('password.manual.reset');
 
 // Semua route lain diamankan dengan middleware 'auth'
 Route::middleware(['auth'])->group(function () {
@@ -87,6 +103,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/classroom/verify-password/{className}', [ClassroomController::class, 'verifyPassword'])
         ->name('classroom.verify-password')
         ->where('className', '.*');
+    Route::put('/classroom/{className}/password', [ClassroomController::class, 'updatePassword'])->name('classroom.update-password')->where('className', '.*');
     Route::delete('/classroom/delete/{id}', [ClassroomController::class, 'destroy'])->name('classroom.destroy');
     Route::get('/classroom/{className}', [ClassroomController::class, 'show'])->name('classroom.show');
     Route::get('/classroom/{className}/materials', [ClassroomController::class, 'materials'])->name('classroom.materials');
@@ -182,7 +199,6 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('schedules/{schedule}', [ScheduleController::class, 'destroy'])->name('schedules.destroy');
         Route::get('exercises/{exerciseId}/review', [ExerciseController::class, 'reviewAnswers'])->name('exercise.review');
         Route::post('exercises/{exerciseId}/review/submit', [ExerciseController::class, 'submitReview'])->name('exercise.review.submit');
-        Route::post('exercises/{exerciseId}/review/archive', [ExerciseController::class, 'archiveReview'])->name('exercise.review.archive');
         Route::get('exercises/{exerciseId}/review/export', [ExerciseController::class, 'exportReview'])->name('exercise.review.export');
     });
 
@@ -223,9 +239,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('classroom/{className}/exercise/{exerciseId}/review', [ExerciseController::class, 'reviewAnswers'])->name('classroom.exercise.review');
     Route::post('classroom/{className}/exercise/{exerciseId}/review', [ExerciseController::class, 'submitReview'])->name('classroom.exercise.review.submit');
 
-    // New route for archive list
-    Route::get('/classroom/archives', [ExerciseController::class, 'archiveList'])->name('classroom.archive.list');
-
     // Dictionary + Translate
     Route::get('/dictionary', [DictionaryController::class, 'index'])->name('dictionary.index');
     Route::post('/dictionary/search', [DictionaryController::class, 'search'])->name('dictionary.search');
@@ -245,6 +258,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/games/{game}', [GameController::class, 'update'])->name('games.update');
         Route::delete('/games/{game}', [GameController::class, 'destroy'])->name('games.destroy');
         Route::get('/games/{game}/history', [GameController::class, 'history'])->name('games.history');
+        Route::get('/games/{game}/status', [App\Http\Controllers\GameController::class, 'status'])->name('games.status');
     });
     // Classroom Game Tab (semua role)
     Route::get('/classroom/{className}/games', [GameController::class, 'classroomGames'])->name('classroom.games');
@@ -252,6 +266,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/classroom/{className}/games/{game}/score', [GameController::class, 'score'])->name('classroom.games.score');
     Route::get('/classroom/{className}/games/{game}/scoreboard', [GameController::class, 'scoreboard'])->name('classroom.games.scoreboard');
     Route::post('/games/{game}/start', [GameController::class, 'startGame'])->name('games.start');
+    Route::post('/games/{game}/start', [GameController::class, 'startGame'])->name('games.startGame');
 });
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {

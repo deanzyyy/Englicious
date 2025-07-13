@@ -26,6 +26,7 @@ class ExerciseController extends Controller
     public function index(Request $request)
     {
         try {
+            $user = Auth::user();
             // 1. Get base query with eager loading
             $query = Exercise::with([
                 'topic' => function($q) {
@@ -34,7 +35,8 @@ class ExerciseController extends Controller
                 'subtopic' => function($q) {
                     $q->select('id', 'name', 'topic_id');
                 },
-                'questions'
+                'questions',
+                'creator'
             ]);
 
             // 2. Get all available categories from topics
@@ -42,34 +44,70 @@ class ExerciseController extends Controller
                 ->distinct()
                 ->pluck('category');
 
-            // 3. Get exercises with counts and ordering
-            $exercises = $query->withCount('questions')
-                             ->orderBy('created_at', 'desc')
-                             ->get();
+            // 3. Initialize exercises and noClassroomJoined flag
+            $exercises = collect();
+            $noClassroomJoined = false;
 
-            // 4. Group exercises by category and topic
-            $groupedExercises = collect();
-
-            // 5. If category filter is applied, only show that category
-            if ($request->has('category') && $request->category !== 'all') {
-                $filteredExercises = $exercises->filter(function ($exercise) use ($request) {
-                    return optional($exercise->topic)->category === $request->category;
-                });
-                
-                if ($filteredExercises->isNotEmpty()) {
-                    $groupedExercises[$request->category] = $filteredExercises->groupBy(function ($exercise) {
-                        return optional($exercise->topic)->name ?? 'Uncategorized';
-                    });
+            if ($user && $user->role === 'student') {
+                $studentClassrooms = $user->classrooms; // Assuming a 'classrooms' relationship on the User model
+                if ($studentClassrooms->isEmpty()) {
+                    $noClassroomJoined = true;
+                } else {
+                    $classroomIds = $studentClassrooms->pluck('id')->toArray();
+                    $exercises = Exercise::whereHas('classrooms', function ($q) use ($classroomIds) {
+                                        $q->whereIn('classrooms.id', $classroomIds);
+                                    })
+                                    ->with(['classrooms' => function($q) use ($classroomIds) {
+                                        $q->whereIn('classrooms.id', $classroomIds);
+                                    }])
+                                    ->withCount('questions')
+                                    ->orderBy('created_at', 'desc')
+                                    ->get();
                 }
             } else {
-                // Show all categories if no filter or 'all' is selected
-                $groupedExercises = $exercises->groupBy(function ($exercise) {
-                    return optional($exercise->topic)->category ?? 'Uncategorized';
-                })->map(function ($categoryExercises) {
-                    return $categoryExercises->groupBy(function ($exercise) {
-                        return optional($exercise->topic)->name ?? 'Uncategorized';
+                // For non-student roles (teacher/admin) or if no user is logged in
+                if ($user && $user->role === 'teacher') {
+                    // Teachers only see exercises they created
+                    $exercises = $query->where('created_by', $user->id)
+                                     ->withCount('questions')
+                                     ->orderBy('created_at', 'desc')
+                                     ->get();
+                } elseif ($user && $user->role === 'admin') {
+                    // Admins see all exercises
+                    $exercises = $query->withCount('questions')
+                                     ->orderBy('created_at', 'desc')
+                                     ->get();
+                } else {
+                    // If no user or other roles, fetch all exercises (default behavior)
+                    $exercises = $query->withCount('questions')
+                                     ->orderBy('created_at', 'desc')
+                                     ->get();
+                }
+            }
+
+            // 4. Group exercises by category and topic (only if not a student with no classrooms)
+            $groupedExercises = collect();
+            if (!$noClassroomJoined) {
+                if ($request->has('category') && $request->category !== 'all') {
+                    $filteredExercises = $exercises->filter(function ($exercise) use ($request) {
+                        return optional($exercise->topic)->category === $request->category;
                     });
-                });
+                    
+                    if ($filteredExercises->isNotEmpty()) {
+                        $groupedExercises[$request->category] = $filteredExercises->groupBy(function ($exercise) {
+                            return optional($exercise->topic)->name ?? 'Uncategorized';
+                        });
+                    }
+                } else {
+                    // Show all categories if no filter or 'all' is selected
+                    $groupedExercises = $exercises->groupBy(function ($exercise) {
+                        return optional($exercise->topic)->category ?? 'Uncategorized';
+                    })->map(function ($categoryExercises) {
+                        return $categoryExercises->groupBy(function ($exercise) {
+                            return optional($exercise->topic)->name ?? 'Uncategorized';
+                        });
+                    });
+                }
             }
 
             // Pass data to view
@@ -77,7 +115,8 @@ class ExerciseController extends Controller
                 'exercises' => $groupedExercises,
                 'allCategories' => $allCategories,
                 'total_exercises' => $exercises->count(),
-                'currentCategory' => $request->category ?? 'all'
+                'currentCategory' => $request->category ?? 'all',
+                'noClassroomJoined' => $noClassroomJoined // Pass the flag to the view
             ]);
 
         } catch (\Exception $e) {
@@ -535,17 +574,50 @@ class ExerciseController extends Controller
             
             $score = ($correctAnswers / $totalQuestions) * 100;
 
-            // Save submission
-            $submission = StudentSubmission::create([
-                'user_id' => Auth::id(),
-                'exercise_id' => $id,
-                'classroom_id' => $validated['classroom_id'] ?? null,
-                'answers' => $answers,
-                'correct_answers' => $correctAnswers,
-                'total_questions' => $totalQuestions,
-                'score' => $score,
-                'is_completed' => true
-            ]);
+            // Cek submission lama
+            $existing = StudentSubmission::where('user_id', Auth::id())
+                ->where('exercise_id', $id)
+                ->where(function($q) use ($validated) {
+                    if (array_key_exists('classroom_id', $validated) && $validated['classroom_id']) {
+                        $q->where('classroom_id', $validated['classroom_id']);
+                    } else {
+                        $q->whereNull('classroom_id');
+                    }
+                })
+                ->first();
+            if ($existing) {
+                $existing->answers = $answers;
+                $existing->correct_answers = $correctAnswers;
+                $existing->total_questions = $totalQuestions;
+                $existing->score = $score;
+                $existing->is_completed = true;
+                $existing->essay_scores = null;
+                $existing->essay_comments = null;
+                $existing->save();
+                $submission = $existing;
+                Log::info('Submission updated (try again)', ['id' => $submission->id]);
+            } else {
+                $submission = StudentSubmission::create([
+                    'user_id' => Auth::id(),
+                    'exercise_id' => $id,
+                    'classroom_id' => $validated['classroom_id'] ?? null,
+                    'answers' => $answers,
+                    'correct_answers' => $correctAnswers,
+                    'total_questions' => $totalQuestions,
+                    'score' => $score,
+                    'is_completed' => true
+                ]);
+                Log::info('Submission created', ['id' => $submission->id]);
+            }
+            if (!$submission) {
+                Log::error('Failed to create/update submission', [
+                    'user_id' => Auth::id(),
+                    'exercise_id' => $id,
+                    'classroom_id' => $validated['classroom_id'] ?? null
+                ]);
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Gagal menyimpan submission. Silakan coba lagi.');
+            }
 
             DB::commit();
 
@@ -559,9 +631,10 @@ class ExerciseController extends Controller
             ]);
 
             // Redirect to result page
-            if ($validated['classroom_id']) {
+            $classroomId = $validated['classroom_id'] ?? null;
+            if (!empty($classroomId)) {
                 // For classroom exercises, redirect to classroom exercise result
-                $classroom = Classroom::find($validated['classroom_id']);
+                $classroom = Classroom::find($classroomId);
                 return redirect()->route('classroom.exercise.result', [
                     'className' => $classroom->name,
                     'exerciseId' => $id
@@ -790,8 +863,16 @@ class ExerciseController extends Controller
 
             // Query submissions grouped by student
             $submissionsQuery = StudentSubmission::where('exercise_id', $exerciseId)
-                ->where('classroom_id', $classroom->id)
                 ->where('is_completed', true)
+                ->where(function($q) use ($classroom) {
+                    $q->where('classroom_id', $classroom->id)
+                      ->orWhere(function($q2) use ($classroom) {
+                          $q2->whereNull('classroom_id')
+                             ->whereHas('user.classrooms', function($q3) use ($classroom) {
+                                 $q3->where('classrooms.id', $classroom->id);
+                             });
+                      });
+                })
                 ->with('user');
             if ($search) {
                 $submissionsQuery->whereHas('user', function($q) use ($search) {
@@ -808,10 +889,7 @@ class ExerciseController extends Controller
             // Pagination
             $submissions = $submissionsQuery->orderBy('updated_at', 'desc')->paginate(10);
 
-            // For archiving: check if exercise is archived
-            $isArchived = $exercise->status === 'archived';
-
-            return view('classroom.review-essay', compact('classroom', 'exercise', 'essayQuestions', 'submissions', 'isArchived', 'search', 'status'));
+            return view('classroom.review-essay', compact('classroom', 'exercise', 'essayQuestions', 'submissions', 'search', 'status'));
         } catch (\Exception $e) {
             Log::error('Error in reviewAnswers: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error loading review page: ' . $e->getMessage());
@@ -855,12 +933,26 @@ class ExerciseController extends Controller
             }
             $updatedCount = 0;
             foreach ($studentIds as $studentId) {
-                $submission = StudentSubmission::where('exercise_id', $exerciseId)
-                    ->where('classroom_id', $classroom->id)
-                    ->where('user_id', $studentId)
-                    ->where('is_completed', true)
-                    ->latest()
-                    ->first();
+                $submissionId = $request->input('submission_ids')[$studentId] ?? null;
+                if ($submissionId) {
+                    $submission = StudentSubmission::find($submissionId);
+                } else {
+                    $submission = StudentSubmission::where('exercise_id', $exerciseId)
+                        ->where('user_id', $studentId)
+                        ->where('is_completed', true)
+                        ->where(function($q) use ($classroom) {
+                            $q->where('classroom_id', $classroom->id)
+                              ->orWhereNull('classroom_id');
+                        })
+                        ->latest()
+                        ->first();
+                }
+                Log::info('Essay review debug: found submission', [
+                    'student_id' => $studentId,
+                    'submission_id' => $submission?->id,
+                    'essay_scores_before' => $submission?->essay_scores,
+                    'essay_comments_before' => $submission?->essay_comments,
+                ]);
                 if (!$submission) continue;
                 $essay_scores = $submission->essay_scores ?? [];
                 $essay_comments = $submission->essay_comments ?? [];
@@ -872,7 +964,40 @@ class ExerciseController extends Controller
                 }
                 $submission->essay_scores = $essay_scores;
                 $submission->essay_comments = $essay_comments;
+                // Recalculate score after review
+                $exerciseQuestions = $exercise->questions;
+                $totalQuestions = $exerciseQuestions->count();
+                $correctOptional = 0;
+                $essayScoresArr = [];
+                $essayQuestionIds = $exerciseQuestions->where('type', 'essay')->pluck('id')->all();
+                $allEssayScored = true;
+                foreach ($exerciseQuestions as $q) {
+                    if ($q->type === 'optional') {
+                        if (isset($submission->answers[$q->id]) && (string)$submission->answers[$q->id] === (string)$q->correct_answer) {
+                            $correctOptional++;
+                        }
+                    } elseif ($q->type === 'essay') {
+                        if (isset($essay_scores[$q->id]) && is_numeric($essay_scores[$q->id])) {
+                            $essayScoresArr[] = floatval($essay_scores[$q->id]);
+                        } else {
+                            $allEssayScored = false;
+                        }
+                    }
+                }
+                if (count($essayQuestionIds) > 0 && $allEssayScored) {
+                    $essayScoreAvg = count($essayScoresArr) > 0 ? array_sum($essayScoresArr) / count($essayScoresArr) : 0;
+                    $totalScore = ($correctOptional + ($essayScoreAvg / 100) * count($essayScoresArr)) / $totalQuestions * 100;
+                    $submission->score = round($totalScore, 2);
+                } else {
+                    $submission->score = round(($correctOptional / $totalQuestions) * 100, 2);
+                }
                 $submission->save();
+                Log::info('Essay review debug: after save', [
+                    'student_id' => $studentId,
+                    'submission_id' => $submission->id,
+                    'essay_scores_after' => $submission->essay_scores,
+                    'essay_comments_after' => $submission->essay_comments,
+                ]);
                 $updatedCount++;
             }
             
@@ -890,21 +1015,8 @@ class ExerciseController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error submitting essay review: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Error saving review: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Error saving review: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
         }
-    }
-
-    public function archiveReview($className, $exerciseId)
-    {
-        $user = Auth::user();
-        if (!in_array($user->role, ['teacher', 'admin'])) {
-            abort(403);
-        }
-        $classroom = Classroom::where('name', $className)->firstOrFail();
-        $exercise = Exercise::findOrFail($exerciseId);
-        $exercise->status = 'archived';
-        $exercise->save();
-        return redirect()->back()->with(['success' => 'Exercise review archived.', 'archived' => true]);
     }
 
     public function exportReview($className, $exerciseId)
@@ -942,18 +1054,5 @@ class ExerciseController extends Controller
         ]);
         $filename = 'review_' . $className . '_' . $exerciseId . '_' . now()->format('Ymd_His') . '.pdf';
         return $pdf->download($filename);
-    }
-
-    public function archiveList(Request $request)
-    {
-        $user = Auth::user();
-        if (!in_array($user->role, ['teacher', 'admin'])) {
-            abort(403);
-        }
-        $archivedExercises = \App\Models\Exercise::where('status', 'archived')
-            ->with(['classrooms', 'questions'])
-            ->orderByDesc('updated_at')
-            ->get();
-        return view('classroom.archive-list', compact('archivedExercises'));
     }
 }

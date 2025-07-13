@@ -18,38 +18,52 @@
                     <i class="fi fi-rr-list mr-2"></i>
                     My Exercise Results
                 </a>
-                <a href="{{ route('exercises.create') }}" 
-                   class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                    </svg>
-                    Create New Exercise
-                </a>
+                @if(auth()->user()->role !== 'student')
+                    <a href="{{ route('exercises.create') }}" 
+                       class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        Create New Exercise
+                    </a>
+                @endif
             </div>
         </div>
 
         <!-- Category Filter Tabs -->
         <div class="flex justify-between items-center mb-6">
             <div class="flex space-x-4">
-            <a href="{{ route('exercises.index') }}" 
-                class="category-tab px-4 py-2 text-white rounded-lg hover:bg-white/5 transition-all {{ $currentCategory === 'all' ? 'bg-gradient-to-r from-pink-500 to-orange-500' : '' }}">
-                All Exercises
-            </a>
-            @foreach($allCategories as $category)
-                <a href="{{ route('exercises.index', ['category' => $category]) }}" 
-                    class="category-tab px-4 py-2 text-white rounded-lg hover:bg-white/5 transition-all {{ $currentCategory === $category ? 'bg-gradient-to-r from-pink-500 to-orange-500' : '' }}">
-                    {{ $category }}
+                <a href="{{ route('exercises.index') }}" 
+                    class="category-tab px-4 py-2 text-white rounded-lg hover:bg-white/5 transition-all {{ $currentCategory === 'all' ? 'bg-gradient-to-r from-pink-500 to-orange-500' : '' }}">
+                    All Exercises
                 </a>
-            @endforeach
+                @foreach($allCategories as $category)
+                    <a href="{{ route('exercises.index', ['category' => $category]) }}" 
+                        class="category-tab px-4 py-2 text-white rounded-lg hover:bg-white/5 transition-all {{ $currentCategory === $category ? 'bg-gradient-to-r from-pink-500 to-orange-500' : '' }}">
+                        {{ $category }}
+                    </a>
+                @endforeach
             </div>
-            <button onclick="openAddTopicModal()" 
+            @if(auth()->user()->role !== 'student')
+            <button onclick="window.openAddTopicModal()" 
                     class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center space-x-2">
                 <i class="fi fi-rr-plus"></i>
                 <span>Add New Topic</span>
             </button>
+            @endif
         </div>
 
-        @if($exercises->count() > 0)
+        @if(auth()->user()->role === 'student' && $noClassroomJoined)
+            <div class="bg-[#211F27] rounded-lg shadow-lg border border-white/20 p-8 text-center">
+                <div class="mb-4">
+                    <i class="fi fi-rr-sad-tear text-pink-500 text-5xl"></i>
+                </div>
+                <h3 class="text-white text-xl font-semibold mb-2">Exercises belum tersedia</h3>
+                <p class="text-gray-400 mb-4">
+                    Silahkan bergabung ke dalam classroom terlebih dahulu untuk melihat exercises.
+                </p>
+            </div>
+        @elseif($exercises->count() > 0)
             <div class="space-y-4">
                 @foreach($exercises as $category => $topicGroups)
                     <div class="exercise-category" data-category="{{ $category }}">
@@ -105,6 +119,14 @@
                                                                             <h5 class="text-white font-medium">{{ $exercise->title }}</h5>
                                                                         </div>
                                                                         <p class="text-gray-400 text-sm mt-1">{{ $exercise->description ?: 'No description' }}</p>
+                                                                        @if($exercise->classrooms && $exercise->classrooms->count() > 0)
+                                                                            <p class="text-xs text-pink-400 mt-1">
+                                                                                From {{ $exercise->classrooms->pluck('name')->join(' & ') }}
+                                                                            </p>
+                                                                        @endif
+                                                                        @if($exercise->creator)
+                                                                            <p class="text-gray-500 text-xs mt-1"><i class="fi fi-rr-user mr-1"></i>By {{ $exercise->creator->name }}</p>
+                                                                        @endif
                                                                         <div class="flex items-center space-x-2 mt-2">
                                                                             <span class="text-xs text-gray-500">
                                                                                 <i class="fi fi-rr-clock mr-1"></i>
@@ -123,18 +145,20 @@
                                                                                 class="px-3 py-1 text-pink-500 hover:text-white border border-pink-500 rounded hover:bg-gradient-to-r from-pink-500 to-orange-500 transition-all">
                                                                             View
                                                                         </button>
-                                                                        <button onclick="showSendToClassModal({{ $exercise->id }})"
-                                                                                class="px-3 py-1 text-pink-500 hover:text-white border border-pink-500 rounded hover:bg-gradient-to-r from-pink-500 to-orange-500 transition-all">
-                                                                            <i class="fi fi-rr-paper-plane"></i>
-                                                                        </button>
-                                                                        <button onclick="editExercise({{ $exercise->id }})"
-                                                                                class="px-3 py-1 text-blue-500 hover:text-white border border-blue-500 rounded hover:bg-gradient-to-r from-blue-500 to-blue-600 transition-all">
-                                                                            Edit
-                                                                        </button>
-                                                                        <button onclick="deleteExercise({{ $exercise->id }})"
-                                                                                class="px-3 py-1 text-red-500 hover:text-white border border-red-500 rounded hover:bg-gradient-to-r from-red-500 to-red-600 transition-all">
-                                                                            Delete
-                                                                        </button>
+                                                                        @if(auth()->user()->role !== 'student')
+                                                                            <button onclick="showSendToClassModal({{ $exercise->id }})"
+                                                                                    class="px-3 py-1 text-pink-500 hover:text-white border border-pink-500 rounded hover:bg-gradient-to-r from-pink-500 to-orange-500 transition-all">
+                                                                                <i class="fi fi-rr-paper-plane"></i>
+                                                                            </button>
+                                                                            <button onclick="editExercise({{ $exercise->id }})"
+                                                                                    class="px-3 py-1 text-blue-500 hover:text-white border border-blue-500 rounded hover:bg-gradient-to-r from-blue-500 to-blue-600 transition-all">
+                                                                                Edit
+                                                                            </button>
+                                                                            <button onclick="deleteExercise({{ $exercise->id }})"
+                                                                                    class="px-3 py-1 text-red-500 hover:text-white border border-red-500 rounded hover:bg-gradient-to-r from-red-500 to-red-600 transition-all">
+                                                                                Delete
+                                                                            </button>
+                                                                        @endif
                                                                     </div>
                                                                 </div>
                                                             @endforeach

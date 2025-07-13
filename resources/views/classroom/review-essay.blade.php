@@ -14,16 +14,14 @@
             <button type="submit" class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded hover:opacity-90">Filter</button>
         </form>
         <div class="flex flex-wrap gap-4 items-center">
-            <form method="POST" action="{{ route('classroom.exercise.review.archive', ['className' => $classroom->name, 'exerciseId' => $exercise->id]) }}" class="mb-0">
-                @csrf
-                <button type="submit" class="px-4 py-2 bg-none border-2 border-pink-500 text-pink-500 rounded hover:bg-pink-500 hover:text-white transition">Archive</button>
-            </form>
             <a href="{{ route('classroom.exercise.review.export', ['className' => $classroom->name, 'exerciseId' => $exercise->id]) }}" class="px-4 py-2 bg-none border-2 border-pink-500 text-pink-500 rounded hover:bg-pink-500 hover:text-white transition">Export to PDF</a>
-            <a href="{{ route('classroom.archive.list') }}" class="px-4 py-2 bg-gradient-to-r from-pink-500 to-orange-500 text-white rounded hover:opacity-90">View Archive</a>
         </div>
     </div>
     @if(session('success'))
-        <div class="text-green-400 mb-2">{{ session('success') }}</div>
+        {{-- <div class="text-green-400 mb-2">{{ session('success') }}</div> --}} <!-- Disabled success alert for debugging -->
+    @endif
+    @if(session('error'))
+        <div class="text-red-400 mb-2 whitespace-pre-line">{{ session('error') }}</div>
     @endif
     <form method="POST" action="{{ route('classroom.exercise.review.submit', ['className' => $classroom->name, 'exerciseId' => $exercise->id]) }}" x-data="{ locked: false }">
         @csrf
@@ -56,14 +54,17 @@
                                         $score = isset($submission->essay_scores[$question->id]) ? $submission->essay_scores[$question->id] : '';
                                         $comment = isset($submission->essay_comments[$question->id]) ? $submission->essay_comments[$question->id] : '';
                                     @endphp
+                                    @if($loop->first)
+                                        <input type="hidden" name="submission_ids[{{ $submission->user_id }}]" value="{{ $submission->id }}">
+                                    @endif
                                     <tr x-data="{ locked: false }">
                                         <td class="px-4 py-2 text-white">{{ $question->question_text }}</td>
                                         <td class="px-4 py-2 text-gray-200">{!! $answer !!}</td>
                                         <td class="px-4 py-2">
-                                            <input type="number" name="scores[{{ $question->id }}][{{ $submission->user_id }}]" min="0" max="100" value="{{ $score }}" class="w-20 p-2 rounded bg-gray-800 text-white border border-pink-500 focus:outline-none" placeholder="Score" :disabled="locked">
+                                            <input type="number" name="scores[{{ $question->id }}][{{ $submission->user_id }}]" min="0" max="100" value="{{ $score }}" class="w-20 p-2 rounded bg-gray-800 text-white border border-pink-500 focus:outline-none" placeholder="Score" :readonly="locked">
                                         </td>
                                         <td class="px-4 py-2">
-                                            <input type="text" name="comments[{{ $question->id }}][{{ $submission->user_id }}]" value="{{ $comment }}" class="w-full p-2 rounded bg-gray-800 text-white border border-pink-500 focus:outline-none" placeholder="Comment" :disabled="locked">
+                                            <input type="text" name="comments[{{ $question->id }}][{{ $submission->user_id }}]" value="{{ $comment }}" class="w-full p-2 rounded bg-gray-800 text-white border border-pink-500 focus:outline-none" placeholder="Comment" :readonly="locked">
                                         </td>
                                         <td class="px-4 py-2 text-center">
                                             <button type="button" @click="locked = !locked" :aria-label="locked ? 'Unlock scoring and comment' : 'Lock scoring and comment'" class="p-2 rounded-full bg-gradient-to-r from-pink-500 to-orange-500 text-white focus:outline-none">

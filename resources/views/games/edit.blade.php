@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="ml-64 p-10">
+<div class="p-6">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">Edit Game</h1>
         <p class="text-gray-400">Update game settings and configuration</p>
